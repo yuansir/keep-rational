@@ -1,4 +1,4 @@
-import type { QueueState } from '../types';
+import type { LastPlayedEntry, QueueState } from '../types';
 
 const STORAGE_KEYS = {
   FAVORITES: 'lizhi-favorites',
@@ -7,14 +7,27 @@ const STORAGE_KEYS = {
   QUEUE: 'lizhi-queue',
 } as const;
 
-export function getFavorites(): Set<string> {
+export function getFavoritesList(): string[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.FAVORITES);
     const saved: unknown = stored ? JSON.parse(stored) : [];
-    return new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : []);
+    if (!Array.isArray(saved)) return [];
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const id of saved) {
+      if (typeof id === 'string' && !seen.has(id)) {
+        seen.add(id);
+        ordered.push(id);
+      }
+    }
+    return ordered;
   } catch {
-    return new Set();
+    return [];
   }
+}
+
+export function getFavorites(): Set<string> {
+  return new Set(getFavoritesList());
 }
 
 export function subscribeFavorites(callback: () => void): () => void {
@@ -25,7 +38,7 @@ export function subscribeFavorites(callback: () => void): () => void {
   return () => window.removeEventListener('storage', handleStorage);
 }
 
-export function saveFavorites(favorites: Set<string>): void {
+export function saveFavorites(favorites: Set<string> | string[]): void {
   try {
     localStorage.setItem(
       STORAGE_KEYS.FAVORITES,
@@ -45,6 +58,32 @@ export function getPlaybackHistory(trackId: string): number {
     return typeof position === 'number' && Number.isFinite(position) && position > 0 ? position : 0;
   } catch {
     return 0;
+  }
+}
+
+export function getLastPlayed(): LastPlayedEntry | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.PLAYBACK_HISTORY);
+    if (stored) {
+      const history = JSON.parse(stored) as Record<string, { position?: unknown; timestamp?: unknown }>;
+      let latest: LastPlayedEntry | null = null;
+      for (const [trackId, entry] of Object.entries(history)) {
+        const position = typeof entry?.position === 'number' && Number.isFinite(entry.position) ? Math.max(0, entry.position) : 0;
+        const timestamp = typeof entry?.timestamp === 'number' && Number.isFinite(entry.timestamp) ? entry.timestamp : 0;
+        if (timestamp > 0 && (!latest || timestamp > latest.timestamp)) {
+          latest = { trackId, position, timestamp };
+        }
+      }
+      if (latest) return latest;
+    }
+    const queue = getQueue();
+    const active = queue?.tracks?.[queue.currentIndex];
+    if (active?.id) {
+      return { trackId: active.id, position: getPlaybackHistory(active.id), timestamp: 0 };
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 

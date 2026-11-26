@@ -6,7 +6,7 @@ const plain = '测试文字第一行\n测试文字第二行';
 const mockRecording = (options: Partial<{ id: number; title: string; album: string; duration: number;
   timed: string | null; plain: string | null; instrumental: boolean }> = {}) => ({
   id: options.id ?? 7101,
-  trackName: options.title ?? '不多', artistName: '李志', albumName: options.album ?? '1701', duration: options.duration ?? 20,
+  trackName: options.title ?? '大象', artistName: '李志', albumName: options.album ?? '1701', duration: options.duration ?? 20,
   instrumental: options.instrumental ?? false,
   syncedLyrics: options.timed === undefined ? timed : options.timed,
   plainLyrics: options.plain === undefined ? plain : options.plain,
@@ -57,15 +57,12 @@ test('timed lyrics follow playback and jump to clicked lines', async ({ page }) 
   await expect(panel.getByRole('button', { name: '回到当前句' })).toHaveCount(0);
 });
 
-test('a mismatched recording appears only as optional untimed reference text', async ({ page }) => {
+test('a mismatched recording appears automatically as untimed reference text', async ({ page }) => {
   await fixtureAudio(page);
   await mockLyrics(page, [mockRecording({ album: '另一个现场录音版本' })]);
   await startFeatured(page);
   const panel = await showLyrics(page);
-  await expect(panel.getByText('暂未找到与这版录音匹配的歌词。')).toBeVisible();
-  await expect(panel.getByText('测试甲')).toHaveCount(0);
-  await panel.getByRole('button', { name: '查看同曲其他版本的歌词' }).click();
-  await expect(panel.getByText('参考版本 · 另一个现场录音版本')).toBeVisible();
+  await expect(panel.getByText('参考版本 · 另一个现场录音版本（无时间轴）')).toBeVisible();
   await expect(panel.getByText('测试甲')).toBeVisible();
   await expect(panel.getByRole('button', { name: '测试甲' })).toHaveCount(0);
 });
@@ -74,7 +71,7 @@ test('plain text is shown without false synchronization and an instrumental is c
   await fixtureAudio(page);
   await mockLyrics(page, [
     mockRecording({ timed: null }),
-    mockRecording({ id: 7102, title: '大象', timed: null, plain: null, instrumental: true }),
+    mockRecording({ id: 7102, title: '鼠说', timed: null, plain: null, instrumental: true }),
   ]);
   await startFeatured(page);
   const panel = await showLyrics(page);
@@ -103,7 +100,8 @@ test('imported LRC survives reload and can be removed without changing another t
   await expect.poll(async () => (await audioState(page)).paused).toBe(true);
   await dock(page).getByRole('button', { name: '打开歌词' }).click();
   await expect(panel.getByText('私有测试歌词')).toBeVisible();
-  await panel.getByRole('button', { name: '移除导入' }).click();
+  await panel.getByRole('button', { name: '歌词选项' }).click();
+  await panel.getByRole('menuitem', { name: '移除导入' }).click();
   await expect(panel.getByText('私有测试歌词')).toHaveCount(0);
   await expect(panel.getByText('暂未找到与这版录音匹配的歌词。')).toBeVisible();
 });

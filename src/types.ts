@@ -1,3 +1,5 @@
+export type AlbumCategory = 'studio' | 'live' | 'archive';
+
 export interface Track {
   id: string;
   name: string;
@@ -9,10 +11,24 @@ export interface Album {
   name: string;
   cover: string;
   tracks: Track[];
+  year?: number;
+  category: AlbumCategory;
+  venue?: string;
+  linerNote?: string;
+}
+
+export interface CuratedPlaylist {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  cover: string;
+  tracks: Track[];
 }
 
 export interface Catalogue {
   albums: Album[];
+  archivedAlbums: Album[];
   totalTracks: number;
   generatedAt: string;
 }
@@ -41,6 +57,12 @@ export interface FavoritesState {
 }
 
 export interface PlaybackHistory {
+  trackId: string;
+  position: number;
+  timestamp: number;
+}
+
+export interface LastPlayedEntry {
   trackId: string;
   position: number;
   timestamp: number;
