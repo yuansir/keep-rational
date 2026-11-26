@@ -1,30 +1,47 @@
-import { useLayoutEffect, useRef } from 'react';
-import { usePlayer } from '../contexts/PlayerContext';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { usePlayerState } from '../contexts/PlayerContext';
 import { Icon } from './Icon';
 import { TrackList } from './TrackList';
 
 export function QueueDialog({ onClose }: { onClose: () => void }) {
-  const { queueState } = usePlayer();
+  const { queueState } = usePlayerState();
   const dialog = useRef<HTMLDialogElement>(null);
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<number | undefined>(undefined);
   const { tracks, isShuffled } = queueState;
   const firstAlbum = tracks[0]?.albumName;
   const singleAlbum = firstAlbum && tracks.every((track) => track.albumName === firstAlbum) ? firstAlbum : null;
 
   useLayoutEffect(() => {
     if (dialog.current && !dialog.current.open) dialog.current.showModal();
+    return () => window.clearTimeout(closeTimer.current);
   }, []);
 
-  function dismiss() {
-    dialog.current?.close();
-  }
+  const dismiss = useCallback(() => {
+    const element = dialog.current;
+    if (!element || !element.open || closing) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      element.close();
+      return;
+    }
+    setClosing(true);
+    closeTimer.current = window.setTimeout(() => {
+      element.close();
+    }, 185);
+  }, [closing]);
 
   return (
-    <dialog className="queue-dialog" ref={dialog} aria-labelledby="queue-title" onClose={onClose}
+    <dialog
+      className={`queue-dialog ${closing ? 'is-closing' : ''}`}
+      ref={dialog}
+      aria-labelledby="queue-title"
+      onClose={onClose}
       onClick={(event) => {
         if (event.target !== event.currentTarget) return;
         const { left, right, top, bottom } = event.currentTarget.getBoundingClientRect();
         if (event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom) dismiss();
-      }}>
+      }}
+    >
       <div className="queue-panel">
         <header className="queue-header">
           <div>

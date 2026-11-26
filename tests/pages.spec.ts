@@ -11,13 +11,13 @@ test('home and full album library present the original catalogue', async ({ page
   await page.getByRole('link', { name: '查看全部' }).click();
   await expect(page.getByRole('heading', { name: '音乐库' })).toBeVisible();
   await expect(page.locator('.album-card')).toHaveCount(data.albums.length);
-  await expect(page.getByText('24 张专辑 · 291 首曲目')).toBeVisible();
+  await expect(page.getByText(`${data.albums.length} 张专辑 · ${data.totalTracks} 首曲目`)).toBeVisible();
 });
 
-test('all 24 album pages show the complete original track lists', async ({ page }) => {
+test('all album pages show the complete original track lists', async ({ page }) => {
   const ids = new Set();
   await page.goto('/#/library');
-  for (const album of data.albums) {
+  for (const album of [...data.albums, ...data.archivedAlbums]) {
     await page.goto(`/#/album/${encodeURIComponent(album.name)}`);
     await expect(page.getByRole('heading', { name: album.name, exact: true })).toBeVisible();
     await expect(page.locator('.track-row')).toHaveCount(album.tracks.length);
@@ -29,6 +29,26 @@ test('all 24 album pages show the complete original track lists', async ({ page 
     }
   }
   expect(ids.size).toBe(data.totalTracks);
+});
+
+test('archived 家 recordings keep their bookmarks, favorites and saved queue', async ({ page }) => {
+  await fixtureAudio(page);
+  await page.addInitScript(() => {
+    localStorage.setItem('lizhi-favorites', JSON.stringify(['track-150']));
+    localStorage.setItem('lizhi-queue', JSON.stringify({
+      tracks: [{ id: 'track-150' }], currentIndex: 0, isShuffled: false, repeatMode: 'none',
+    }));
+  });
+  await page.goto('/#/track/track-150');
+  await expect(page.getByRole('heading', { name: '家', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '播放 和你在一起', exact: true })).toBeFocused();
+  await expect(dock(page)).toContainText('和你在一起');
+  expect((await audioState(page)).paused).toBe(true);
+  await page.getByRole('link', { name: /^收藏/ }).click();
+  await expect(page.getByRole('button', { name: '收藏 和你在一起', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: '播放 和你在一起', exact: true }).click();
+  await expect.poll(async () => (await audioState(page)).time).toBeGreaterThan(0);
+  expect(decodeURIComponent(new URL((await audioState(page)).src).pathname)).toContain('/audio/家/和你在一起.mp3');
 });
 
 test('album links and context return work with browser back and bookmarked paths', async ({ page }) => {
@@ -122,12 +142,15 @@ for (const [width, height] of [[320, 568], [390, 844], [768, 1024], [1024, 768],
     await noOverflow();
     await expect(page.getByRole('button', { name: '暂停播放' })).toBeInViewport();
     await page.getByRole('link', { name: '查看曲目' }).click();
-    await expect(page.getByRole('button', { name: '播放 大象', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: '播放 鼠说', exact: true })).toBeInViewport();
     await expect(dock(page).getByRole('button', { name: '暂停', exact: true })).toBeInViewport();
     await noOverflow();
     await page.getByRole('link', { name: '音乐库', exact: true }).click();
-    await expect(page.locator('.album-card')).toHaveCount(24);
+    await expect(page.locator('.album-card')).toHaveCount(23);
     await noOverflow();
+    if (width <= 600) {
+      await page.getByRole('button', { name: '搜索歌曲或专辑' }).click();
+    }
     await page.getByRole('searchbox').fill('热河');
     await expect(page.getByRole('heading', { name: '搜索结果' })).toBeVisible();
     await noOverflow();
@@ -139,7 +162,7 @@ for (const [width, height] of [[320, 568], [390, 844], [768, 1024], [1024, 768],
     expect(await player(page).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await player(page).getByRole('button', { name: '播放队列', exact: true }).click();
     await expect(queue(page).getByRole('button', { name: '关闭播放队列' })).toBeInViewport();
-    await expect(queue(page).getByRole('button', { name: '播放 大象', exact: true })).toBeInViewport();
+    await expect(queue(page).getByRole('button', { name: '播放 鼠说', exact: true })).toBeInViewport();
   });
 }
 
