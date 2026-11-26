@@ -28,10 +28,10 @@ test('@live all original album covers load in the library', async ({ page }) => 
   test.setTimeout(65000);
   await page.goto('/#/library', { waitUntil: 'domcontentloaded' });
   const artwork = page.locator('.album-card .artwork');
-  await expect(artwork).toHaveCount(24);
+  await expect(artwork).toHaveCount(23);
   await artwork.locator('img').evaluateAll((images: HTMLImageElement[]) => {
     for (const image of images) image.loading = 'eager';
   });
   await expect.poll(() => artwork.locator('img').evaluateAll((images: HTMLImageElement[]) =>
-    images.filter((image) => image.complete && image.naturalWidth > 0).length), { timeout: 56000 }).toBe(24);
+    images.filter((image) => image.complete && image.naturalWidth > 0).length), { timeout: 56000 }).toBe(23);
 });

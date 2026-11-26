@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayerState, QueueState, Track } from '../types';
-import { allTracks, albumByName } from '../data/catalogue';
+import { allTracks, albumByName, tracksById } from '../data/catalogue';
 import { mediaSources } from '../utils/media';
 import { getPlaybackHistory, getQueue, getVolume, savePlaybackHistory, saveQueue, saveVolume } from '../utils/storage';
-
-const tracksById = new Map(allTracks.map((track) => [track.id, track]));
 
 function readQueue(): QueueState {
   const saved = getQueue();
@@ -345,8 +343,16 @@ export function useAudioPlayer() {
     };
   }, [clearWatchdog, loadSource, move, pause, persistPosition, play, playNext, playPrevious, update]);
 
+  const getAudioTime = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && audio.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(audio.currentTime)) {
+      return audio.currentTime;
+    }
+    return position.current;
+  }, []);
+
   return {
-    playerState, queueState, togglePlay, seek, setVolume, toggleMute,
+    playerState, queueState, getAudioTime, togglePlay, seek, setVolume, toggleMute,
     playTrack, playNext, playPrevious, toggleShuffle, cycleRepeatMode,
   };
 }

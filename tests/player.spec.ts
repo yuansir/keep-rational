@@ -7,7 +7,7 @@ test('real media element advances, pauses and resumes across pages', async ({ pa
   const initial = await audioState(page);
   expect(initial.duration).toBeGreaterThan(0);
   await page.getByRole('link', { name: '查看曲目' }).click();
-  await expect(dock(page)).toContainText('不多');
+  await expect(dock(page)).toContainText('大象');
   await dock(page).getByRole('button', { name: '暂停', exact: true }).click();
   await expect.poll(async () => (await audioState(page)).paused).toBe(true);
   await expect(dock(page).getByRole('button', { name: '播放', exact: true })).toBeVisible();
@@ -21,12 +21,12 @@ test('real media element advances, pauses and resumes across pages', async ({ pa
 test('album selection, queue switching and next/previous play the right tracks', async ({ page }) => {
   await fixtureAudio(page);
   await page.goto('/#/album/1701');
-  await page.getByRole('button', { name: '播放 大象', exact: true }).click();
-  await expect(dock(page)).toContainText('大象');
+  await page.getByRole('button', { name: '播放 鼠说', exact: true }).click();
+  await expect(dock(page)).toContainText('鼠说');
   await dock(page).getByRole('button', { name: '上一首' }).click();
-  await expect(dock(page)).toContainText('不多');
-  await dock(page).getByRole('button', { name: '下一首' }).click();
   await expect(dock(page)).toContainText('大象');
+  await dock(page).getByRole('button', { name: '下一首' }).click();
+  await expect(dock(page)).toContainText('鼠说');
   await dock(page).getByRole('button', { name: '打开播放队列' }).click();
   await expect(queue(page).locator('.track-row')).toHaveCount(8);
   await queue(page).getByRole('button', { name: '播放 热河', exact: true }).click();
@@ -35,7 +35,7 @@ test('album selection, queue switching and next/previous play the right tracks',
   await expect(page.getByRole('heading', { name: '1701' })).toBeVisible();
   await expect(dock(page)).toContainText('热河');
   await page.getByRole('button', { name: '从头播放' }).click();
-  await expect(dock(page)).toContainText('不多');
+  await expect(dock(page)).toContainText('大象');
 });
 
 test('fullscreen status, range seek with keyboard and pointer, and return to the same page', async ({ page }) => {
@@ -87,7 +87,7 @@ test('queue and playback position persist without autoplay on reload', async ({ 
   await expect.poll(async () => (await audioState(page)).time).toBeGreaterThan(7);
   await page.reload();
   expect((await audioState(page)).paused).toBe(true);
-  await expect(dock(page)).toContainText('不多');
+  await expect(dock(page)).toContainText('大象');
   await dock(page).getByRole('button', { name: '播放', exact: true }).click();
   await expect.poll(async () => (await audioState(page)).time).toBeGreaterThan(7);
 });
@@ -108,20 +108,20 @@ test('shuffle preserves the current song and restores original queue order', asy
   await shuffle.click();
   await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
   await overlay.getByRole('button', { name: '播放队列', exact: true }).click();
-  await expect(queue(page).locator('.track-label strong').first()).toHaveText('不多');
+  await expect(queue(page).locator('.track-label strong').first()).toHaveText('大象');
   await expect(queue(page).locator('[aria-current="true"]')).toContainText('热河');
 });
 
 test('queue repeat wraps, single-track repeat restarts and normal mode advances', async ({ page }) => {
   await fixtureAudio(page);
   await page.goto('/#/album/1701');
-  await page.getByRole('button', { name: '播放 鼠说', exact: true }).click();
+  await page.getByRole('button', { name: '播放 热河', exact: true }).click();
   await openPlayer(page);
   const overlay = player(page);
   await expect(overlay.getByRole('button', { name: '下一首' })).toBeDisabled();
   await overlay.getByRole('button', { name: '循环播放：关闭' }).click();
   await overlay.getByRole('button', { name: '下一首' }).click();
-  await expect(overlay.getByRole('heading', { name: '不多' })).toBeVisible();
+  await expect(overlay.getByRole('heading', { name: '大象' })).toBeVisible();
   await overlay.getByRole('button', { name: '循环播放：队列循环' }).click();
   await expect(overlay.getByRole('button', { name: '循环播放：单曲循环' })).toBeVisible();
   await expect.poll(async () => (await audioState(page)).duration).toBe(20);
@@ -134,22 +134,22 @@ test('queue repeat wraps, single-track repeat restarts and normal mode advances'
     const audio = await audioState(page);
     return !audio.paused && audio.time > 0.05 && audio.time < 6;
   }, { timeout: 8000 }).toBe(true);
-  await expect(overlay.getByRole('heading', { name: '不多' })).toBeVisible();
+  await expect(overlay.getByRole('heading', { name: '大象' })).toBeVisible();
   await overlay.getByRole('button', { name: '循环播放：单曲循环' }).click();
   await overlay.getByRole('slider', { name: '播放进度' }).press('End');
-  await expect(overlay.getByRole('heading', { name: '大象' })).toBeVisible();
+  await expect(overlay.getByRole('heading', { name: '鼠说' })).toBeVisible();
 });
 
 test('repeat-off stops on the final track and allows replay', async ({ page }) => {
   await fixtureAudio(page);
   await page.goto('/#/album/1701');
-  await page.getByRole('button', { name: '播放 鼠说', exact: true }).click();
+  await page.getByRole('button', { name: '播放 热河', exact: true }).click();
   await openPlayer(page);
   const overlay = player(page);
   await expect.poll(async () => (await audioState(page)).duration).toBe(20);
   await overlay.getByRole('slider', { name: '播放进度' }).press('End');
   await expect(overlay.getByText('已暂停')).toBeVisible();
-  await expect(overlay.getByRole('heading', { name: '鼠说' })).toBeVisible();
+  await expect(overlay.getByRole('heading', { name: '热河' })).toBeVisible();
   await overlay.getByRole('button', { name: '播放', exact: true }).click();
   await expect.poll(async () => (await audioState(page)).time).toBeLessThan(4);
 });
@@ -173,7 +173,7 @@ test('all media hosts fail cleanly and manual retry recovers without losing trac
   unavailable = false;
   await player(page).getByRole('button', { name: '重试播放' }).click();
   await expect.poll(async () => (await audioState(page)).time).toBeGreaterThan(0);
-  await expect(player(page).getByRole('heading', { name: '不多' })).toBeVisible();
+  await expect(player(page).getByRole('heading', { name: '大象' })).toBeVisible();
   await expect(player(page).getByRole('alert')).toHaveCount(0);
 });
 
@@ -199,9 +199,9 @@ test('supported Media Session shares the current artist, track and play state', 
     return { name: metadata?.title, artist: metadata?.artist, album: metadata?.album, playbackState };
   });
   if (!(await readMedia())) return;
-  await expect.poll(readMedia).toEqual({ name: '不多', artist: '李志', album: '1701', playbackState: 'playing' });
-  await dock(page).getByRole('button', { name: '下一首' }).click();
   await expect.poll(readMedia).toEqual({ name: '大象', artist: '李志', album: '1701', playbackState: 'playing' });
+  await dock(page).getByRole('button', { name: '下一首' }).click();
+  await expect.poll(readMedia).toEqual({ name: '鼠说', artist: '李志', album: '1701', playbackState: 'playing' });
   await dock(page).getByRole('button', { name: '暂停', exact: true }).click();
-  await expect.poll(readMedia).toEqual({ name: '大象', artist: '李志', album: '1701', playbackState: 'paused' });
+  await expect.poll(readMedia).toEqual({ name: '鼠说', artist: '李志', album: '1701', playbackState: 'paused' });
 });

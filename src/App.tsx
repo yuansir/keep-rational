@@ -9,12 +9,14 @@ import { MiniPlayer } from './components/MiniPlayer';
 import { QueueDialog } from './components/QueueDialog';
 import { TrackList } from './components/TrackList';
 import { Icon } from './components/Icon';
-import { albumByName, allTracks } from './data/catalogue';
+import { getAlbumByName, getTrackById } from './data/catalogue';
+import type { Track } from './types';
 
 type Route =
   | { kind: 'home' | 'library' | 'favorites' }
   | { kind: 'search'; query: string }
-  | { kind: 'album'; name: string; returnHref: string };
+  | { kind: 'album'; name: string; returnHref: string }
+  | { kind: 'track'; trackId: string; returnHref: string };
 
 function readRoute(hash: string, previousHash = ''): Route {
   const [, section, rawValue = ''] = hash.split('/');
@@ -24,6 +26,10 @@ function readRoute(hash: string, previousHash = ''): Route {
     const parent = /^(#\/$|#\/(library|favorites)$|#\/search\/)/.test(previousHash) ? previousHash : '#/library';
     return { kind: 'album', name: value, returnHref: parent };
   }
+  if (section === 'track' && value.trim()) {
+    const parent = /^(#\/$|#\/(library|favorites)$|#\/search\/)/.test(previousHash) ? previousHash : '#/library';
+    return { kind: 'track', trackId: value.trim(), returnHref: parent };
+  }
   if (section === 'search' && value.trim()) return { kind: 'search', query: value };
   if (section === 'library' || section === 'search') return { kind: 'library' };
   if (section === 'favorites') return { kind: 'favorites' };
@@ -31,18 +37,48 @@ function readRoute(hash: string, previousHash = ''): Route {
 }
 
 function Favorites() {
-  const { favorites } = usePlayer();
-  const tracks = allTracks.filter((track) => favorites.has(track.id));
+  const { favorites, playTrack } = usePlayer();
+  const tracks = Array.from(favorites)
+    .map((id) => getTrackById(id))
+    .filter((track): track is Track => track !== undefined);
+
+  function playShuffledFavorites() {
+    if (!tracks.length) return;
+    const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+    playTrack(shuffled[0], shuffled, { restart: true });
+  }
 
   return (
     <section className="shell collection-page favorites-page page-enter" aria-labelledby="favorites-title">
       <div className="collection-header">
-        <h1 className="display-title" id="favorites-title">我的收藏</h1>
-        <p className="subtle">{tracks.length} 首歌曲</p>
+        <div>
+          <h1 className="display-title" id="favorites-title">我的收藏</h1>
+          <p className="subtle">{tracks.length} 首歌曲 · 按收藏顺序排列</p>
+        </div>
+        {tracks.length > 0 && (
+          <div className="collection-actions">
+            <button
+              type="button"
+              className="primary-button compact-button"
+              onClick={() => playTrack(tracks[0], tracks, { restart: true })}
+            >
+              <Icon name="play" />播放全部
+            </button>
+            <button
+              type="button"
+              className="secondary-button compact-button"
+              onClick={playShuffledFavorites}
+            >
+              <Icon name="shuffle" />随机播放
+            </button>
+          </div>
+        )}
       </div>
       {tracks.length > 0 ? <TrackList tracks={tracks} showAlbum /> : (
         <div className="empty-state">
-          <Icon name="heart" /><h2>还没有收藏</h2><p>点一下曲目旁的心形，就能把它留在这里。</p>
+          <Icon name="heart" />
+          <h2>还没有收藏</h2>
+          <p>把听进心里的那一版留在这里——无论是录音室的克制，还是跨年现场的合唱。</p>
           <a className="secondary-button" href="#/library">去音乐库选歌<Icon name="arrow" /></a>
         </div>
       )}
@@ -58,7 +94,12 @@ function AppContent() {
   const [dockQueueOpen, setDockQueueOpen] = useState(false);
   const opener = useRef<HTMLButtonElement | null>(null);
   const main = useRef<HTMLElement>(null);
-  const sectionKey = route.kind === 'album' ? `album:${route.name}` : route.kind;
+  const preSearchHash = useRef<string>('#/library');
+  const sectionKey = route.kind === 'album'
+    ? `album:${route.name}`
+    : route.kind === 'track'
+      ? `track:${route.trackId}`
+      : route.kind;
   const previousSection = useRef(sectionKey);
 
   useEffect(() => {
@@ -82,7 +123,13 @@ function AppContent() {
   function handleSearchChange(value: string) {
     setSearch(value);
     if (!value.trim() && route.kind !== 'search') return;
-    const url = value.trim() ? `#/search/${encodeURIComponent(value)}` : '#/library';
+    if (route.kind !== 'search' && value.trim()) {
+      const currentHash = location.hash || '#/';
+      preSearchHash.current = currentHash.startsWith('#/search/') ? '#/library' : currentHash;
+    }
+    const url = value.trim()
+      ? `#/search/${encodeURIComponent(value)}`
+      : (preSearchHash.current === '#/' ? '#/library' : preSearchHash.current);
     if (route.kind === 'search') history.replaceState(null, '', url);
     else history.pushState(null, '', url);
     setRoute(readRoute(url));
@@ -104,25 +151,51 @@ function AppContent() {
     opener.current?.focus({ preventScroll: true });
   }
 
-  const album = route.kind === 'album' ? albumByName.get(route.name) : undefined;
+  const deepLinkedTrack = route.kind === 'track' ? getTrackById(route.trackId) : undefined;
+  const album = route.kind === 'album'
+    ? getAlbumByName(route.name)
+    : deepLinkedTrack
+      ? getAlbumByName(deepLinkedTrack.albumName)
+      : undefined;
+
+  const headerActive = route.kind === 'track' ? 'album' : route.kind;
 
   return (
     <div className={`app ${playerState.currentTrack ? 'has-player' : ''}`}>
-      <a href="#main-content" className="skip-link" tabIndex={0} onClick={(event) => { event.preventDefault(); main.current?.focus(); }}>跳到主要内容</a>
-      <Header active={route.kind} search={search} onSearchChange={handleSearchChange} favoritesCount={favorites.size} />
+      <a
+        href="#main-content"
+        className="skip-link"
+        tabIndex={0}
+        onClick={(event) => { event.preventDefault(); main.current?.focus(); }}
+      >
+        跳到主要内容
+      </a>
+      <Header active={headerActive} search={search} onSearchChange={handleSearchChange} favoritesCount={favorites.size} />
       <main id="main-content" ref={main} tabIndex={-1}>
         {route.kind === 'home' && <ListeningRoom />}
         {route.kind === 'library' && <AlbumLibrary key="library" />}
         {route.kind === 'search' && <AlbumLibrary key="search" query={route.query} />}
         {route.kind === 'favorites' && <Favorites />}
-        {route.kind === 'album' && (album ? <AlbumDetail album={album} returnHref={route.returnHref} /> : (
-          <section className="shell collection-page"><div className="empty-state">
-            <Icon name="disc" /><h1>找不到这张专辑</h1><a className="secondary-button" href="#/library">返回音乐库</a>
-          </div></section>
+        {(route.kind === 'album' || route.kind === 'track') && (album ? (
+          <AlbumDetail album={album} returnHref={route.returnHref} focusTrackId={deepLinkedTrack?.id} />
+        ) : (
+          <section className="shell collection-page">
+            <div className="empty-state">
+              <Icon name="disc" />
+              <h1>{route.kind === 'track' ? '找不到这首歌曲' : '找不到这张专辑'}</h1>
+              <a className="secondary-button" href="#/library">返回音乐库</a>
+            </div>
+          </section>
         ))}
       </main>
       <MiniPlayer onExpand={expandPlayer} />
-      {expanded && <ImmersivePlayer onClose={closePlayer} origin={expanded.origin} showLyricsInitially={expanded.showLyrics} />}
+      {expanded && (
+        <ImmersivePlayer
+          onClose={closePlayer}
+          origin={expanded.origin}
+          showLyricsInitially={expanded.showLyrics}
+        />
+      )}
       {dockQueueOpen && <QueueDialog onClose={closePlayer} />}
     </div>
   );

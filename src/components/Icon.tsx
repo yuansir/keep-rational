@@ -20,9 +20,17 @@ const paths = {
   repeatOne: <><path d="m16 3 4 4-4 4M4 11V9a2 2 0 0 1 2-2h14M8 21l-4-4 4-4m12 0v2a2 2 0 0 1-2 2H4" /><path d="m11 11 1.5-1v4" /></>,
   disc: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="1.8" /><path d="M6.5 12a5.5 5.5 0 0 1 5.5-5.5m5.5 5.5a5.5 5.5 0 0 1-5.5 5.5" /></>,
   bars: <path d="M6 12v5m4-10v10m4-13v13m4-8v8" />,
+  more: <><circle cx="6" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" /><circle cx="18" cy="12" r="1.3" fill="currentColor" stroke="none" /></>,
+  versions: <><path d="M12 4 4 8l8 4 8-4-8-4Z" /><path d="m4 12 8 4 8-4" /><path d="m4 16 8 4 8-4" /></>,
+  clock: <><circle cx="12" cy="12" r="8" /><path d="M12 7.5V12l3 2" /></>,
+  compass: <><circle cx="12" cy="12" r="8" /><path d="m15.2 8.8-2 5.2-5.2 2 2-5.2 5.2-2Z" /></>,
+  share: <><path d="M12 4v11m0-11-4 4m4-4 4 4" /><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></>,
+  poster: <><rect x="4" y="3.5" width="16" height="17" rx="2" /><path d="M8 8.5h8M8 12h6M8 15.5h4" /></>,
 };
 
-export function Icon({ name, className = '' }: { name: keyof typeof paths; className?: string }) {
+export type IconName = keyof typeof paths;
+
+export function Icon({ name, className = '' }: { name: IconName; className?: string }) {
   return (
     <svg className={`icon ${className}`} viewBox="0 0 24 24" aria-hidden="true"
       fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" strokeLinejoin="round">
